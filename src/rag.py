@@ -25,6 +25,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, TextIteratorStream
 
 from src.config import cfg
 from src.indexing import Indexer
+from src.retriever import HybridRetriever
 
 
 # ── Domain-specific system prompts ──────────────────────────────
@@ -83,6 +84,7 @@ class RAGPipeline:
 
     def __init__(self, indexer: Indexer):
         self.indexer = indexer
+        self.retriever = HybridRetriever(indexer)
         self.model_name = cfg.llm.model
         self.tokenizer = None
         self.model = None
@@ -117,20 +119,21 @@ class RAGPipeline:
 
     # ── Retrieval ───────────────────────────────────────────────
 
-    def retrieve(self, query: str, k: int = None) -> List[Tuple[str, float]]:
-        """Retrieve top-k chunks from the vector store."""
-        return self.indexer.search(query, k)
+    def retrieve(self, query: str, k: int = None) -> List[Tuple[dict, float]]:
+        """Retrieve top-k chunks using Hybrid Search and Reranking."""
+        return self.retriever.search(query, final_k=k)
 
     # ── Prompt Construction ─────────────────────────────────────
 
     def _build_messages(
         self,
         query: str,
-        context_chunks: List[Tuple[str, float]],
+        context_chunks: List[Tuple[dict, float]],
         doc_type: str = None,
     ) -> list:
-        """Build the chat messages list for the LLM."""
-        context = "\n".join([f"- {chunk}" for chunk, _ in context_chunks])
+        """Build the chat messages list for the LLM using Parent Context."""
+        # We feed the larger "parent_text" to the LLM for better reasoning context
+        context = "\n".join([f"- {chunk['parent_text']}" for chunk, _ in context_chunks])
         current_doc_type = doc_type or self.doc_type
         system_prompt = PROMPTS.get(current_doc_type, PROMPTS["general"])
 
@@ -144,7 +147,7 @@ class RAGPipeline:
     def generate_response(
         self,
         query: str,
-        context_chunks: List[Tuple[str, float]],
+        context_chunks: List[Tuple[dict, float]],
         doc_type: str = None,
     ) -> str:
         """Generate a complete answer (blocking). Used by /query endpoint."""
@@ -182,7 +185,7 @@ class RAGPipeline:
     def stream_response(
         self,
         query: str,
-        context_chunks: List[Tuple[str, float]],
+        context_chunks: List[Tuple[dict, float]],
         doc_type: str = None,
     ) -> Generator[str, None, None]:
         """

@@ -95,7 +95,7 @@ def test_rag_retrieval(tmp_path):
     rag = RAGPipeline(indexer)
     results = rag.retrieve("France")
     assert len(results) > 0
-    assert "Paris is in France" in [r[0] for r in results]
+    assert "Paris is in France" in [r[0]["text"] for r in results]
 
 
 def test_prompts_exist():

@@ -1,6 +1,6 @@
 import pypdf
 import re
-from typing import List
+from typing import List, Dict, Union
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -147,21 +147,37 @@ def _split_technical(text: str) -> List[str]:
     return restored_chunks
 
 
-def split_by_document_type(text: str, doc_type: str = None) -> List[str]:
-    """Adaptive chunking based on document type."""
+def split_by_document_type(text: str, doc_type: str = None) -> List[Dict[str, str]]:
+    """Adaptive Parent-Child chunking based on document type.
+    Returns: List of dicts with 'text' (child chunk) and 'parent_text' (larger context).
+    """
     if doc_type is None:
         doc_type = detect_document_type(text)
     
     print(f"Detected document type: {doc_type}")
     
+    # Generate large, context-rich chunks (Parents)
     if doc_type in ('research_paper', 'journal_article'):
-        return _split_academic(text)
+        parents = _split_academic(text)
     elif doc_type == 'textbook':
-        return _split_textbook(text)
+        parents = _split_textbook(text)
     elif doc_type == 'technical_doc':
-        return _split_technical(text)
+        parents = _split_technical(text)
     else:
-        return _chunk_with_sentences(text, max_size=1000, overlap=100)
+        parents = _chunk_with_sentences(text, max_size=1000, overlap=100)
+    
+    # Shatter parents into precise, searchable chunks (Children)
+    parent_child_mapping = []
+    for parent in parents:
+        # Smaller child size (e.g., 250 chars) for high-precision vector match
+        children = _chunk_with_sentences(parent, max_size=250, overlap=25)
+        for child in children:
+            parent_child_mapping.append({
+                "text": child,               # The search index targets this
+                "parent_text": parent        # The LLM receives this
+            })
+            
+    return parent_child_mapping
 
 
 def split_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:

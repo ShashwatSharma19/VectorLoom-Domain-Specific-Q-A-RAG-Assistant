@@ -15,8 +15,11 @@ import faiss
 import numpy as np
 import os
 import torch
+import json
+import pickle
+from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
-from typing import List, Tuple
+from typing import List, Tuple, Union, Dict
 
 from src.config import cfg
 
@@ -35,17 +38,29 @@ class Indexer:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = SentenceTransformer(model_name, device=device)
         self.index_path = index_path
+        self.bm25_path = index_path.replace(".bin", "_bm25.pkl") if index_path else cfg.retrieval.bm25_path
         self.index = None
-        self.chunks: List[str] = []
+        self.bm25 = None
+        self.chunks: List[Dict[str, str]] = []
 
-    def create_vector_store(self, chunks: List[str]):
-        """Embeds chunks and creates or updates a FAISS index."""
+    def create_vector_store(self, chunks: List[Union[str, dict]]):
+        """Embeds chunks, creates FAISS dense index and BM25 sparse index."""
         if not chunks:
             return
 
+        # Normalize chunks to new Dict format
+        parsed_chunks = []
+        for c in chunks:
+            if isinstance(c, str):
+                parsed_chunks.append({"text": c, "parent_text": c})
+            else:
+                parsed_chunks.append(c)
+
+        texts_to_embed = [c["text"] for c in parsed_chunks]
+
         # Batch processing with optimal batch size from config
         embeddings = self.model.encode(
-            chunks,
+            texts_to_embed,
             batch_size=cfg.embedding.batch_size,
             show_progress_bar=True,
             convert_to_numpy=True,
@@ -63,38 +78,58 @@ class Indexer:
 
         # Check if dimension matches
         if self.index.d != dimension:
-            # If dimensions mismatch (different model used previously?), reset
             print("Dimension mismatch, resetting index.")
             self.index = faiss.IndexFlatL2(dimension)
             self.chunks = []
+            self.bm25 = None
 
+        # Add to FAISS
         self.index.add(np.array(embeddings).astype("float32"))
-        self.chunks.extend(chunks)
+        self.chunks.extend(parsed_chunks)
+        
+        # Build/Update BM25
+        all_texts = [c["text"] for c in self.chunks]
+        tokenized_corpus = [doc.lower().split() for doc in all_texts]
+        self.bm25 = BM25Okapi(tokenized_corpus)
 
     def save_index(self):
-        """Saves the index and chunks to disk."""
+        """Saves the FAISS index, BM25 index, and chunks to disk."""
         if self.index:
             faiss.write_index(self.index, self.index_path)
             with open(self.index_path + ".chunks", "w", encoding="utf-8") as f:
-                for chunk in self.chunks:
-                    f.write(chunk.replace("\n", " ") + "\n")
+                json.dump(self.chunks, f)
+            if self.bm25:
+                with open(self.bm25_path, "wb") as f:
+                    pickle.dump(self.bm25, f)
 
     def load_index(self):
-        """Loads the index and chunks from disk."""
+        """Loads indices and chunks from disk."""
         if os.path.exists(self.index_path):
             self.index = faiss.read_index(self.index_path)
             if os.path.exists(self.index_path + ".chunks"):
                 with open(self.index_path + ".chunks", "r", encoding="utf-8") as f:
-                    self.chunks = [line.strip() for line in f.readlines()]
+                    try:
+                        self.chunks = json.load(f)
+                    except json.JSONDecodeError:
+                        # Backwards compatibility for old line-by-line format
+                        f.seek(0)
+                        self.chunks = [{"text": line.strip(), "parent_text": line.strip()} for line in f.readlines()]
+            if os.path.exists(self.bm25_path):
+                with open(self.bm25_path, "rb") as f:
+                    self.bm25 = pickle.load(f)
+            elif self.chunks:
+                # Rebuild BM25 if missing
+                tokenized_corpus = [c["text"].lower().split() for c in self.chunks]
+                self.bm25 = BM25Okapi(tokenized_corpus)
         else:
             print("Index not found.")
 
-    def search(self, query: str, k: int = None) -> List[Tuple[str, float]]:
+    def search(self, query: str, k: int = None) -> List[Tuple[Dict[str, str], float]]:
         """
         Searches the FAISS index for the k nearest chunks.
 
         Returns:
-            List of (chunk_text, l2_distance) tuples sorted by relevance.
+            List of (chunk_dict, l2_distance) tuples sorted by relevance.
         """
         if k is None:
             k = cfg.retrieval.top_k

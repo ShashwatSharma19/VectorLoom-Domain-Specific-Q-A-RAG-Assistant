@@ -115,9 +115,13 @@ async def query(request: QueryRequest):
         )
 
         # Return both the answer and the source chunks with scores
-        # (scores are L2 distances — lower = more relevant)
+        # (scores are Cross-Encoder relevance — higher = more relevant)
         sources = [
-            {"text": chunk, "score": round(score, 4)}
+            {
+                "text": chunk["text"],
+                "parent_text": chunk["parent_text"],
+                "score": round(score, 4),
+            }
             for chunk, score in context_chunks
         ]
         return {"answer": answer, "sources": sources}
@@ -158,9 +162,13 @@ async def query_stream(request: QueryRequest):
                 no_results(), media_type="text/event-stream"
             )
 
-        # Build the source metadata for the X-Ray panel
+        # Build the source metadata for the X-Ray panel (now including parent context)
         sources = [
-            {"text": chunk, "score": round(score, 4)}
+            {
+                "text": chunk["text"],
+                "parent_text": chunk["parent_text"],
+                "score": round(score, 4),
+            }
             for chunk, score in context_chunks
         ]
 

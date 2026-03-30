@@ -89,30 +89,35 @@ def _render_xray_expander(sources: list):
     """
     The X-Ray Expander — shows exactly what the retrieval engine found.
 
-    This is the "show your work" panel that hiring managers love.
-    It displays each retrieved chunk alongside its L2 distance score
-    so the user (or evaluator) can see WHY the LLM gave that answer.
-
-    Lower L2 distance = closer semantic match = more relevant.
+    This displays the Cross-Encoder relevance scores and the Parent-Child
+    chunk matching that powers the LLM's context window.
     """
-    with st.expander("🔍 X-Ray: Retrieved Chunks & Relevance Scores", expanded=False):
+    with st.expander("🔍 X-Ray: Retrieved Chunks & Reranker Scores", expanded=False):
         for i, source in enumerate(sources):
             score = source.get("score", 0)
             text = source.get("text", str(source))
+            parent_text = source.get("parent_text", "")
 
-            # Color-code relevance: green (very close) → yellow → red (far)
-            if score < 0.5:
+            # Color-code relevance based on MS MARCO Cross-Encoder logits
+            # Typically > 0 is relevant, > 5 is highly relevant
+            if score > 5.0:
                 relevance = "🟢 High"
-            elif score < 1.0:
+            elif score > 0.0:
                 relevance = "🟡 Medium"
             else:
                 relevance = "🔴 Low"
 
             st.markdown(
-                f"**Chunk {i + 1}** — L2 Distance: `{score:.4f}` | "
+                f"**Chunk {i + 1}** — Cross-Encoder Score: `{score:.4f}` | "
                 f"Relevance: {relevance}"
             )
-            st.code(text[:500] + ("..." if len(text) > 500 else ""), language=None)
+            st.markdown("**Search Hit (Child Chunk):**")
+            st.caption(text)
+            
+            st.markdown("**Context Sent to LLM (Parent Chunk):**")
+            preview = parent_text[:400] + ("..." if len(parent_text) > 400 else "")
+            st.code(preview, language="markdown")
+            
             if i < len(sources) - 1:
                 st.divider()
 
@@ -172,9 +177,20 @@ if question := st.chat_input("Ask a question about your document..."):
         # Initialize sources storage
         st.session_state._last_sources = []
 
-        # st.write_stream consumes a generator and displays tokens
-        # as they arrive — giving the live "typing" effect
-        full_response = st.write_stream(_consume_sse_stream(question))
+        # We manually pull the first token inside a spinner, so the user
+        # knows the background Reranking math is happening before streaming starts.
+        stream_gen = _consume_sse_stream(question)
+        with st.spinner("Reranking results with Cross-Encoder..."):
+            first_token = next(stream_gen, None)
+            
+        if first_token:
+            def joined_stream():
+                yield first_token
+                yield from stream_gen
+                
+            full_response = st.write_stream(joined_stream())
+        else:
+            full_response = st.write_stream(stream_gen)
 
         # Retrieve the sources that were collected during streaming
         sources = st.session_state.get("_last_sources", [])

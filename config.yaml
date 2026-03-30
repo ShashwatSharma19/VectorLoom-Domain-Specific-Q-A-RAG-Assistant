@@ -23,10 +23,13 @@ llm:
   top_p: 0.9                          # Nucleus sampling threshold
   torch_dtype: "float16"              # float16 for GPU, float32 for CPU safety
 
-# --- Retrieval ---
+# --- Hybrid Retrieval & Reranking ---
 retrieval:
-  top_k: 8                            # Number of chunks to retrieve from FAISS
+  top_k: 24                            # Number of chunks to retrieve *initially* per retriever (FAISS/BM25)
+  final_k: 8                           # Number of chunks to pass to LLM after cross-encoder reranking
   index_path: "faiss_index.bin"        # Path to the serialized FAISS index
+  bm25_path: "bm25_index.pkl"          # Path to the BM25 keyword index
+  reranker_model: "cross-encoder/ms-marco-MiniLM-L-6-v2" # Cross-Encoder model name
 
 # --- Chunking (default fallback values) ---
 chunking:
