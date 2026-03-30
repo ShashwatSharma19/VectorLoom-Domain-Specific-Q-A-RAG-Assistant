@@ -1,0 +1,24 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\shash\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\shash\Documents\Domain Q&A Assistant
+plugins: anyio-4.12.1
+collecting ... collected 0 items / 1 error
+
+=================================== ERRORS ====================================
+____________________ ERROR collecting tests/test-basic.py _____________________
+ImportError while importing test module 'C:\Users\shash\Documents\Domain Q&A Assistant\tests\test-basic.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.3312.0_x64__qbz5n2kfra8p0\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test-basic.py:11: in <module>
+    from src.ingestion import split_text, detect_document_type, split_by_document_type
+src\ingestion.py:1: in <module>
+    import pypdf
+E   ModuleNotFoundError: No module named 'pypdf'
+=========================== short test summary info ===========================
+ERROR tests/test-basic.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+============================== 1 error in 0.11s ===============================

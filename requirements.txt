@@ -1,0 +1,15 @@
+torch
+transformers
+sentence-transformers
+faiss-cpu
+pypdf
+fastapi
+uvicorn
+streamlit
+python-multipart
+requests
+accelerate
+scipy
+pytest
+httpx
+pyyaml

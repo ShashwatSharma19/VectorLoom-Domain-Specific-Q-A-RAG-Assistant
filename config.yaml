@@ -1,0 +1,40 @@
+# ============================================================
+# Domain Q&A RAG Assistant — Central Configuration
+# ============================================================
+# This file is the single source of truth for every tunable
+# parameter in the system. Swap models, change chunk sizes,
+# or adjust retrieval depth WITHOUT touching source code.
+#
+# Any value here can be overridden by setting an environment
+# variable with the prefix QA_ and the UPPER_CASE key name.
+# Example:  QA_LLM_MODEL=microsoft/phi-2  overrides llm.model
+# ============================================================
+
+# --- Embedding Model (used for vectorizing chunks & queries) ---
+embedding:
+  model: "all-MiniLM-L6-v2"          # HuggingFace sentence-transformer
+  batch_size: 32                       # Batch size for encoding chunks
+
+# --- Language Model (used for answer generation) ---
+llm:
+  model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"   # Change to Qwen/Qwen2.5-1.5B-Instruct for better quality
+  max_new_tokens: 256                  # Max tokens to generate per answer
+  temperature: 0.7                     # Sampling temperature (0 = deterministic)
+  top_p: 0.9                          # Nucleus sampling threshold
+  torch_dtype: "float16"              # float16 for GPU, float32 for CPU safety
+
+# --- Retrieval ---
+retrieval:
+  top_k: 8                            # Number of chunks to retrieve from FAISS
+  index_path: "faiss_index.bin"        # Path to the serialized FAISS index
+
+# --- Chunking (default fallback values) ---
+chunking:
+  default_chunk_size: 1000             # Characters per chunk
+  default_overlap: 100                 # Overlap between consecutive chunks
+
+# --- Server ---
+server:
+  api_host: "0.0.0.0"
+  api_port: 8000
+  ui_port: 8501

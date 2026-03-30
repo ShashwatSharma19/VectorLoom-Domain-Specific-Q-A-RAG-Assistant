@@ -1,0 +1,44 @@
+# Domain Q&A RAG Assistant — Docker Compose
+# ============================================================
+# Usage:  docker-compose up --build
+# 
+# This spins up both services:
+#   - API backend  at http://localhost:8000
+#   - Streamlit UI at http://localhost:8501
+#
+# HuggingFace models are cached in a named Docker volume
+# so they survive container rebuilds (no re-downloading).
+# ============================================================
+
+version: "3.8"
+
+services:
+  # ── FastAPI Backend ──────────────────────────────────────────
+  api:
+    build: .
+    container_name: rag-api
+    command: uvicorn app.api:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - hf_cache:/app/.cache/huggingface    # Persist model downloads
+      - ./config.yaml:/app/config.yaml       # Mount config for live editing
+    environment:
+      - HF_HOME=/app/.cache/huggingface
+
+  # ── Streamlit Frontend ───────────────────────────────────────
+  ui:
+    build: .
+    container_name: rag-ui
+    command: streamlit run app/ui.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    environment:
+      # Tell the UI where to find the API inside Docker network
+      - API_URL=http://api:8000
+
+volumes:
+  hf_cache:
+    name: rag-huggingface-cache
