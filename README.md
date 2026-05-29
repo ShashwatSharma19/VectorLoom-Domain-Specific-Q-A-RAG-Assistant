@@ -1,17 +1,19 @@
 # VectorLoom: Domain-Specific Q/A RAG Assistant
 
-> **Project Timeline**: Initial development and Base Architecture completed **January 2026**.
+> **Project Timeline**: Initial development and Base Architecture completed **January 2026**. Cycle 2 (Advanced Features & Intelligence) integrated.
 
 A Retrieval-Augmented Generation (RAG) application that allows users to upload PDF documents and ask questions about them.
 
 ## Features
-- **PDF Ingestion**: Upload and parse PDF documents.
+- **Adaptive Document Processing**: Auto-detects document types (Research Papers, Textbooks, Technical Docs) and applies domain-specific system prompts.
+- **Intelligent Chunking**: Implements type-specific chunking strategies, sentence-boundary awareness, and code block protection.
+- **PDF Ingestion**: Parallel text extraction using ThreadPoolExecutor for multi-page PDFs.
 - **RAG Pipeline**: 
   - Embeddings: `sentence-transformers/all-MiniLM-L6-v2`
   - Vector Store: `FAISS`
-  - LLM: `Qwen/Qwen2.5-1.5B-Instruct` (Runs locally on CPU)
-- **Web Interface**: User-friendly UI built with Streamlit.
-- **Evaluation**: Tools for calculating retrieval metrics and LLM-based answer scoring.
+  - LLM: `Qwen/Qwen2.5-1.5B-Instruct` (Lazy-loaded, supports GPU acceleration)
+- **Web Interface**: User-friendly UI built with Streamlit featuring real-time token streaming and an enhanced X-Ray panel with L2 distance scores.
+- **Evaluation Framework**: Calculates retrieval metrics (Recall@k, MRR) and includes an LLMJudge for scoring answer faithfulness and relevance.
 
 ## Setup
 

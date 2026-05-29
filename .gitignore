@@ -9,3 +9,6 @@ temp_*
 .venv/
 .env
 .cache/
+.claude/
+*.md
+!README.md
