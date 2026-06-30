@@ -1,19 +1,23 @@
 # VectorLoom: Domain-Specific Q/A RAG Assistant
 
-> **Project Timeline**: Initial development and Base Architecture completed **January 2026**. Cycle 2 (Advanced Features & Intelligence) integrated.
+> **Project Timeline**: Base Architecture completed **January 2026**. Cycle 2 (Advanced Features & Intelligence) integrated.
 
-A Retrieval-Augmented Generation (RAG) application that allows users to upload PDF documents and ask questions about them.
+A Retrieval-Augmented Generation (RAG) application that allows users to upload PDF documents and ask questions about them using a multi-stage hybrid retrieval pipeline.
 
 ## Features
+
 - **Adaptive Document Processing**: Auto-detects document types (Research Papers, Textbooks, Technical Docs) and applies domain-specific system prompts.
-- **Intelligent Chunking**: Implements type-specific chunking strategies, sentence-boundary awareness, and code block protection.
-- **PDF Ingestion**: Parallel text extraction using ThreadPoolExecutor for multi-page PDFs.
-- **RAG Pipeline**: 
-  - Embeddings: `sentence-transformers/all-MiniLM-L6-v2`
-  - Vector Store: `FAISS`
-  - LLM: `Qwen/Qwen2.5-1.5B-Instruct` (Lazy-loaded, supports GPU acceleration)
-- **Web Interface**: User-friendly UI built with Streamlit featuring real-time token streaming and an enhanced X-Ray panel with L2 distance scores.
-- **Evaluation Framework**: Calculates retrieval metrics (Recall@k, MRR) and includes an LLMJudge for scoring answer faithfulness and relevance.
+- **Intelligent Chunking**: Type-specific chunking strategies with sentence-boundary awareness and code block protection.
+- **PDF Ingestion**: Parallel text extraction using `ThreadPoolExecutor` for multi-page PDFs.
+- **Hybrid Retrieval Pipeline**:
+  - Dense search via `FAISS` (semantic similarity)
+  - Sparse search via `BM25` (exact keyword matching)
+  - Result fusion using **Reciprocal Rank Fusion (RRF)**
+  - Final reranking with a **Cross-Encoder** (`ms-marco-MiniLM-L-6-v2`)
+- **Embeddings**: `sentence-transformers/all-MiniLM-L6-v2`
+- **LLM**: `Qwen/Qwen2.5-1.5B-Instruct` (lazy-loaded, GPU-accelerated when available)
+- **Web Interface**: Streamlit UI with real-time token streaming and an X-Ray panel showing retrieval scores.
+- **Evaluation Framework**: Retrieval metrics (Recall@k, MRR) and an LLM Judge for answer faithfulness and relevance scoring.
 
 ## Setup
 
@@ -49,17 +53,19 @@ This opens the web interface in your browser (usually at `http://localhost:8501`
 
 ### Option 2: Demo Notebook
 
-Open `demo.ipynb` in VS Code or Jupyter Notebook/Lab to walk through the pipeline step-by-step (Ingestion -> Indexing -> Retrieval -> Generation -> Evaluation).
+Open `demo.ipynb` in VS Code or Jupyter Notebook/Lab to walk through the full pipeline step-by-step (Ingestion → Indexing → Retrieval → Generation → Evaluation).
 
 ## Directory Structure
 
-- `app/`: Contains the application servers.
+- `app/`: Application servers.
   - `api.py`: FastAPI backend.
   - `ui.py`: Streamlit frontend.
 - `src/`: Core logic.
-  - `ingestion.py`: PDF parsing and chunking.
-  - `indexing.py`: Vector store management (FAISS).
-  - `rag.py`: RAG pipeline (Retrieval + Generation).
+  - `ingestion.py`: PDF parsing and adaptive chunking.
+  - `indexing.py`: FAISS + BM25 index management.
+  - `retriever.py`: Hybrid retrieval with RRF fusion and Cross-Encoder reranking.
+  - `rag.py`: RAG pipeline (retrieval + generation).
   - `evaluation.py`: Metrics and LLM Judge.
+  - `config.py`: Configuration loader.
 - `tests/`: Basic tests.
 - `requirements.txt`: Python dependencies.
