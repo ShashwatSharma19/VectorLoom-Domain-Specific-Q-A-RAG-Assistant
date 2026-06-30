@@ -228,8 +228,17 @@ class RAGPipeline:
             top_p=cfg.llm.top_p,
             pad_token_id=self.tokenizer.eos_token_id,
         )
+        def generate_with_error_handling():
+            try:
+                self.model.generate(**generation_kwargs)
+            except Exception as e:
+                print(f"ERROR IN GENERATE THREAD: {e}")
+                # Stop the streamer to unblock the main thread
+                if hasattr(streamer, "stop_signal"):
+                    streamer.text_queue.put(streamer.stop_signal)
+
         thread = threading.Thread(
-            target=self.model.generate, kwargs=generation_kwargs
+            target=generate_with_error_handling
         )
         thread.start()
 

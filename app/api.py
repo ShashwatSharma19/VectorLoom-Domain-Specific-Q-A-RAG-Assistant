@@ -68,7 +68,7 @@ class QueryRequest(BaseModel):
 # ── Endpoints ────────────────────────────────────────────────────
 
 @app.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+def upload_pdf(file: UploadFile = File(...)):
     """Upload a PDF, chunk it adaptively, and index the chunks."""
     global current_doc_type
     try:
@@ -100,7 +100,7 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 
 @app.post("/query")
-async def query(request: QueryRequest):
+def query(request: QueryRequest):
     """Ask a question — returns the full answer at once (blocking)."""
     try:
         context_chunks = rag.retrieve(request.question)
@@ -120,7 +120,7 @@ async def query(request: QueryRequest):
             {
                 "text": chunk["text"],
                 "parent_text": chunk["parent_text"],
-                "score": round(score, 4),
+                "score": round(float(score), 4),
             }
             for chunk, score in context_chunks
         ]
@@ -131,7 +131,7 @@ async def query(request: QueryRequest):
 
 
 @app.post("/query/stream")
-async def query_stream(request: QueryRequest):
+def query_stream(request: QueryRequest):
     """
     Ask a question — streams tokens back via Server-Sent Events (SSE).
 
@@ -167,7 +167,7 @@ async def query_stream(request: QueryRequest):
             {
                 "text": chunk["text"],
                 "parent_text": chunk["parent_text"],
-                "score": round(score, 4),
+                "score": round(float(score), 4),
             }
             for chunk, score in context_chunks
         ]
